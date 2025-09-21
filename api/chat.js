@@ -5,6 +5,7 @@ const notion = new Client({
 });
 
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
+const LEADS_DATABASE_ID = process.env.LEADS_DATABASE_ID;
 
 module.exports = async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,8 +21,16 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-        const { message } = req.body;
+        const { message, leadData, action } = req.body;
         
+        // Si es una captura de lead
+        if (action === 'capture_lead' && leadData) {
+            console.log('V2 - Capturando lead:', leadData);
+            const result = await captureLead(leadData);
+            return res.status(200).json(result);
+        }
+        
+        // Búsqueda normal
         if (!message || typeof message !== 'string') {
             return res.status(400).json({ error: 'Message is required' });
         }
@@ -128,14 +137,17 @@ function extractAnswer(entry) {
     try {
         const answer = getPlainText(entry.properties.Respuesta);
         const enlaces = getPlainText(entry.properties.Enlaces);
+        const triggerLead = entry.properties.Trigger_Lead?.checkbox || false;
+        const leadMessage = getPlainText(entry.properties.Lead_Message);
         
         const result = {
             text: answer,
-            links: []
+            links: [],
+            triggerLead: triggerLead,
+            leadMessage: leadMessage || "¿Te gustaría una consulta personalizada sobre tu caso específico?"
         };
         
         if (enlaces) {
-            // Parsear enlaces: "Título|URL,Título2|URL2"
             const linkPairs = enlaces.split(',');
             linkPairs.forEach(pair => {
                 const [title, url] = pair.split('|');
@@ -153,8 +165,80 @@ function extractAnswer(entry) {
         console.error('V2 - Error extrayendo respuesta:', error);
         return JSON.stringify({
             text: "Error al procesar la respuesta.",
-            links: []
+            links: [],
+            triggerLead: false
         });
+    }
+}
+
+async function captureLead(leadData) {
+    try {
+        console.log('V2 - Guardando lead en Notion...');
+        
+        const { nombre, empresa, email, telefono, conversacion } = leadData;
+        
+        const response = await notion.pages.create({
+            parent: { database_id: LEADS_DATABASE_ID },
+            properties: {
+                'Nombre': {
+                    title: [
+                        {
+                            text: {
+                                content: nombre
+                            }
+                        }
+                    ]
+                },
+                'Empresa': {
+                    rich_text: [
+                        {
+                            text: {
+                                content: empresa
+                            }
+                        }
+                    ]
+                },
+                'Email': {
+                    email: email
+                },
+                'Teléfono': {
+                    phone_number: telefono
+                },
+                'Fecha': {
+                    date: {
+                        start: new Date().toISOString().split('T')[0]
+                    }
+                },
+                'Conversación': {
+                    rich_text: [
+                        {
+                            text: {
+                                content: conversacion || 'Conversación del chatbot ENISA'
+                            }
+                        }
+                    ]
+                },
+                'Estado': {
+                    select: {
+                        name: 'Nuevo'
+                    }
+                }
+            }
+        });
+
+        console.log('V2 - Lead guardado exitosamente:', response.id);
+        
+        return {
+            success: true,
+            message: 'Gracias por tu información. Te contactaremos pronto para tu consulta personalizada sobre ENISA.'
+        };
+        
+    } catch (error) {
+        console.error('V2 - Error guardando lead:', error);
+        return {
+            success: false,
+            message: 'Error al procesar tu información. Por favor, contáctanos directamente.'
+        };
     }
 }
 
