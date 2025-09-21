@@ -126,10 +126,35 @@ function calculateRelevanceScore(entry, userMessage) {
 
 function extractAnswer(entry) {
     try {
-        return getPlainText(entry.properties.Respuesta);
+        const answer = getPlainText(entry.properties.Respuesta);
+        const enlaces = getPlainText(entry.properties.Enlaces);
+        
+        const result = {
+            text: answer,
+            links: []
+        };
+        
+        if (enlaces) {
+            // Parsear enlaces: "Título|URL,Título2|URL2"
+            const linkPairs = enlaces.split(',');
+            linkPairs.forEach(pair => {
+                const [title, url] = pair.split('|');
+                if (title && url) {
+                    result.links.push({
+                        title: title.trim(),
+                        url: url.trim()
+                    });
+                }
+            });
+        }
+        
+        return JSON.stringify(result);
     } catch (error) {
         console.error('V2 - Error extrayendo respuesta:', error);
-        return "Error al procesar la respuesta.";
+        return JSON.stringify({
+            text: "Error al procesar la respuesta.",
+            links: []
+        });
     }
 }
 
