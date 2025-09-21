@@ -1,1 +1,18 @@
-
+{
+  "name": "chatbot-enisa-v2",
+  "version": "1.0.0",
+  "description": "Backend API para chatbot ENISA de Premoney",
+  "main": "api/chat.js",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["notion", "chatbot", "enisa", "api"],
+  "author": "Premoney Consultora",
+  "license": "MIT"
+}
