@@ -135,18 +135,24 @@ function calculateRelevanceScore(entry, userMessage) {
 
 function extractAnswer(entry) {
     try {
-        const answer = getPlainText(entry.properties.Respuesta);
+        let answer = getPlainText(entry.properties.Respuesta);
         const enlaces = getPlainText(entry.properties.Enlaces);
-        const triggerLead = entry.properties.Trigger_Lead?.checkbox || false;
-        const leadMessage = getPlainText(entry.properties.Lead_Message);
+        
+        // Procesar formato básico
+        answer = answer
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')  // **negrita**
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')              // *cursiva*
+            .replace(/^- (.*)/gm, '• $1')                      // - viñetas
+            .replace(/\n/g, '<br>')                            // saltos de línea
+            .replace(/^### (.*)/gm, '<h4 style="margin: 8px 0 4px 0; font-weight: 600; color: #333;">$1</h4>') // ### subtítulos
+            .replace(/^## (.*)/gm, '<h3 style="margin: 12px 0 6px 0; font-weight: 700; color: #000;">$1</h3>'); // ## títulos
         
         const result = {
             text: answer,
-            links: [],
-            triggerLead: triggerLead,
-            leadMessage: leadMessage || "¿Te gustaría una consulta personalizada sobre tu caso específico?"
+            links: []
         };
         
+        // Procesar enlaces igual que antes
         if (enlaces) {
             const linkPairs = enlaces.split(',');
             linkPairs.forEach(pair => {
@@ -165,8 +171,7 @@ function extractAnswer(entry) {
         console.error('V2 - Error extrayendo respuesta:', error);
         return JSON.stringify({
             text: "Error al procesar la respuesta.",
-            links: [],
-            triggerLead: false
+            links: []
         });
     }
 }
